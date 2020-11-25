@@ -36,6 +36,11 @@ module SaveInfo=
                         |Some(w) -> printfn "War selected: %s" w.name
                         | _ -> ()
                     {state with selectedWar = war;selectedBattle = (match war with | Some(w) -> Some( w.battles.[0]) | None -> None)}
+                | Msg.SelectBattle battle ->
+                    match battle with
+                        | Some(b) -> (printfn "Selected battle of %s " b.name)
+                        | _ -> ()
+                    {state with selectedBattle = battle}
        newState,Cmd.none
 
     
@@ -44,6 +49,7 @@ module SaveInfo=
         
         let showActor (actor: V2.BattleActor) alignment=
             StackPanel.create[
+                
                 StackPanel.spacing 10.0
                 StackPanel.horizontalAlignment alignment
                 StackPanel.dock Dock.Left
@@ -83,6 +89,11 @@ module SaveInfo=
                             TextBlock.fontSize 20.0
                             TextBlock.text (sprintf "Battle of %s" battle.name)
                         ]
+                        TextBlock.create[
+                            TextBlock.horizontalAlignment HorizontalAlignment.Center
+                            TextBlock.fontSize 18.0
+                            TextBlock.text (sprintf "Result: %s" battle.result)
+                        ]
                         DockPanel.create[
                             DockPanel.children[
                                 showActor battle.attacker HorizontalAlignment.Left
@@ -118,13 +129,35 @@ module SaveInfo=
 
     let warsContent (state: State) (dispatch) =
         
+        let showBattleList (war : V2.War) =
+            let battleItem (battle : V2.Battle)=
+                StackPanel.create[
+                    StackPanel.spacing 10.0
+                    StackPanel.children[
+                        TextBlock.create[
+                            TextBlock.fontSize 16.0
+                            TextBlock.text (sprintf "Battle of %s" battle.name)
+                        ]
+                            
+                    ]
+                ]
+            ListBox.create[
+                ListBox.dataItems war.battles
+                ListBox.itemTemplate(DataTemplateView<V2.Battle>.create(fun (item) -> battleItem item))
+                ListBox.onSelectedItemChanged((fun obj ->
+                                                match obj with
+                                                    | :? V2.Battle as battle -> battle |> Some |> SelectBattle |> dispatch
+                                                    | _ -> None |> SelectBattle |> dispatch))]
+            
+            
+
         let warItem (item: V2.War) dispatch =
             StackPanel.create[
                 StackPanel.spacing 10.0
                 
                 StackPanel.children[
                     TextBlock.create[
-                        
+                        TextBlock.fontSize 16.0
                         TextBlock.text item.name
                         
                     ]
@@ -156,6 +189,7 @@ module SaveInfo=
                         
                         showWar state dispatch
                         showBattle state dispatch
+                        match state.selectedWar with | Some(war) -> showBattleList war  | None -> StackPanel.create[]
                     ]
                 ]
                 
