@@ -12,3 +12,6 @@ Victoria 2 Save game analyzer made in Avalonia.FuncUI
 
 ## Disclaimer
 This project is not affiliated with Paradox Interactive in any way
+
+## Contribution
+This project is still a WIP in early stages. Feel free to contribute if you like :)
