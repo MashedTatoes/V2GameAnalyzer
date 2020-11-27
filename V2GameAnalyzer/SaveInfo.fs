@@ -33,7 +33,9 @@ module SaveInfo=
                     {state with saveGame = file;v2File = v2 }
                 | Msg.SelectWar war ->
                     match war with
-                        |Some(w) -> printfn "War selected: %s" w.name
+                        |Some(w) -> 
+                            printfn "War selected: %s" w.name
+                            printfn "%s" (w.ToString())
                         | _ -> ()
                     {state with selectedWar = war;selectedBattle = (match war with | Some(w) -> Some( w.battles.[0]) | None -> None)}
                 | Msg.SelectBattle battle ->
@@ -64,8 +66,8 @@ module SaveInfo=
                         Expander.horizontalAlignment HorizontalAlignment.Center
                         Expander.contentTemplate(DataTemplateView<V2.BattleActor>.create(fun item -> StackPanel.create[
                             StackPanel.children[
-                                 TextBlock.create[TextBlock.text (sprintf "Infantry: %d" item.artillery);TextBlock.fontSize 14.0]
-                                 TextBlock.create[TextBlock.text (sprintf "Cavalry: %d" item.infantry);TextBlock.fontSize 14.0]
+                                 TextBlock.create[TextBlock.text (sprintf "Infantry: %d" item.infantry);TextBlock.fontSize 14.0]
+                                 TextBlock.create[TextBlock.text (sprintf "Cavalry: %d" item.cavalry);TextBlock.fontSize 14.0]
                                  TextBlock.create[TextBlock.text (sprintf "Arillery: %d" item.artillery);TextBlock.fontSize 14.0]
                                  TextBlock.create[TextBlock.text (sprintf "Hussar: %d" item.hussar);TextBlock.fontSize 14.0]
                                  
@@ -128,10 +130,51 @@ module SaveInfo=
         ]
 
     let warsContent (state: State) (dispatch) =
-        
+        let evenItem (event : V2.Event) =
+            match event.eventType with
+            | V2.EventType.WarGoal (cb, actor, receiver, score, fulfilled) -> 
+                let actor = match actor with | Some(str) -> str | None -> "None"
+                let cb = match cb with | Some(str) -> str | None -> "None"
+                TextBlock.create[
+                    
+                    TextBlock.text (sprintf "%s added %s on %s" actor cb event.date)
+                ]
+            | V2.EventType.AddAttacker attacker ->
+                TextBlock.create[
+                    TextBlock.fontSize 16.0
+                    TextBlock.text (sprintf "%s: %s joined as Co-Belligerent" event.date attacker)
+                ]
+            | V2.EventType.RemoveAttacker attacker ->
+                TextBlock.create[
+                    TextBlock.fontSize 16.0
+                    TextBlock.text (sprintf "%s: %s left as Co-Belligerent" event.date attacker)
+                ]
+            | V2.EventType.AddDefender attacker ->
+                TextBlock.create[
+                    TextBlock.fontSize 16.0
+                    TextBlock.text (sprintf "%s: %s joined as defender" event.date attacker)
+                ]
+            | V2.EventType.RemoveDefender attacker ->
+                TextBlock.create[
+                    TextBlock.fontSize 16.0
+                    TextBlock.text (sprintf "%s: %s left as defender" event.date attacker)
+                ]
+            | _ -> TextBlock.create[]
+
+        let showEvents (war:V2.War) =
+            ListBox.create[
+                ListBox.horizontalAlignment HorizontalAlignment.Left
+                ListBox.minWidth 500.0
+                ListBox.maxWidth 1000.0
+                ListBox.dataItems war.events
+                ListBox.itemTemplate (DataTemplateView<V2.Event>.create(fun item -> evenItem item))
+                
+            ]
+            
         let showBattleList (war : V2.War) =
             let battleItem (battle : V2.Battle)=
                 StackPanel.create[
+                    StackPanel.minWidth 500.0
                     StackPanel.spacing 10.0
                     StackPanel.children[
                         TextBlock.create[
@@ -189,7 +232,14 @@ module SaveInfo=
                         
                         showWar state dispatch
                         showBattle state dispatch
-                        match state.selectedWar with | Some(war) -> showBattleList war  | None -> StackPanel.create[]
+                        DockPanel.create[
+                            DockPanel.maxHeight 500.0
+                            DockPanel.children[
+                                match state.selectedWar with | Some(war) -> showBattleList war  | None -> StackPanel.create[]
+                                match state.selectedWar with | Some(war) -> showEvents war  | None -> StackPanel.create[]
+                            ]
+                        ]
+                        
                     ]
                 ]
                 
