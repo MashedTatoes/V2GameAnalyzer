@@ -142,12 +142,12 @@ module SaveInfo=
             | V2.EventType.AddAttacker attacker ->
                 TextBlock.create[
                     TextBlock.fontSize 16.0
-                    TextBlock.text (sprintf "%s: %s joined as Co-Belligerent" event.date attacker)
+                    TextBlock.text (sprintf "%s: %s joined as attacker" event.date attacker)
                 ]
             | V2.EventType.RemoveAttacker attacker ->
                 TextBlock.create[
                     TextBlock.fontSize 16.0
-                    TextBlock.text (sprintf "%s: %s left as Co-Belligerent" event.date attacker)
+                    TextBlock.text (sprintf "%s: %s left as attacker" event.date attacker)
                 ]
             | V2.EventType.AddDefender attacker ->
                 TextBlock.create[
