@@ -24,7 +24,9 @@ module Shell =
         | AboutMsg of About.Msg
         | SaveMsg of SaveInfo.Msg
         | OpenFile
+        | OpenDir
         | AfterSelectFile of string array
+        | AfterSelectDir of string
 
     let init =
         let aboutState, aboutCmd = About.init
@@ -54,9 +56,15 @@ module Shell =
 
             let showDialog window = dialog.ShowAsync(window) |> Async.AwaitTask
             state, Cmd.OfAsync.perform showDialog window AfterSelectFile
+        |OpenDir ->
+            let dialog = V2GameAnalyzer.Dialogs.getDirectory
+            let showDialog window = dialog.ShowAsync(window) |> Async.AwaitTask
+            state, Cmd.OfAsync.perform showDialog window AfterSelectDir
         | AfterSelectFile files ->
             let song = files.[0]
             state, Cmd.map SaveMsg (Cmd.ofMsg(SaveInfo.Msg.Open song))
+        |AfterSelectDir dir ->
+            state,Cmd.map SaveMsg (Cmd.ofMsg(SaveInfo.Msg.LoadFlags dir))
 
     let tabControl state dispatch = 
         TabControl.create [ 
@@ -80,6 +88,11 @@ module Shell =
                            MenuItem.create[
                                MenuItem.header "Open"
                                MenuItem.onClick( fun _ -> dispatch OpenFile)
+                           ]
+                           MenuItem.create[
+                               MenuItem.header "Load flags"
+                               //MenuItem.onClick(fun _ -> dispatch OpenDir)
+                           
                            ]
                        ]
                    ]

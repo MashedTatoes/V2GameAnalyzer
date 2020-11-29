@@ -22,5 +22,9 @@ module Dialogs =
                
         dialog.Filters <- System.Collections.Generic.List(filters)
         dialog
+    let getDirectory =
+        let dialog = OpenFolderDialog()
+        
+        dialog
 
 

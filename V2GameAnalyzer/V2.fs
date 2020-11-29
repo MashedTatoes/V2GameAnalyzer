@@ -2,6 +2,9 @@
 open System.IO
 open System.Collections.Generic
 open System.Text.RegularExpressions
+open Pfim
+open Avalonia.Media.Imaging
+open System.Runtime.InteropServices
 module V2 =
 
     //I hate regex
@@ -34,6 +37,7 @@ module V2 =
         result:string
         attacker: BattleActor
         defender : BattleActor
+
     }
     let initBattle = {name = ""; result = "";attacker = initActor;defender = initActor}
    
@@ -62,9 +66,21 @@ module V2 =
            defender:string
            battles : list<Battle>
            events : list<Event>
+           attackers: list<string>
+           defenders: list<string>
+
+           
     }
 
-    let initWar = {name = "";attacker = "";defender="";battles = List.empty;events = List.empty}
+    let initWar = {
+        name = ""
+        attacker = ""
+        defender=""
+        battles = List.empty
+        events = List.empty
+        attackers = List.empty
+        defenders = List.Empty
+        }
     type V2File = {
           wars: list<War>
       
@@ -150,7 +166,7 @@ module V2 =
                 | "rem_defender" ->
                     
                     let attacker = line.[1].Replace("\"","")
-                    let eventType = RemoveAttacker(attacker)
+                    let eventType = RemoveDefender(attacker)
                     {event with eventType = eventType}
                 | _ -> parseEvent lines event (currentIndex + 1)
 
@@ -169,21 +185,31 @@ module V2 =
             if blockStack.Count <> 0 then
                 match blockStack.Peek() with
                     | "previous_war" ->
-                        if line.Contains("name") then war <- {war with name = getValue line} 
-                        elif line.Contains("attacker") then war <- {war with attacker = getValue line}
-                        elif line.Contains("defender") then war<- {war with defender =getValue line}
+                        if line.Contains("name") then war <- {war with name = getValue line;} 
+                        elif line.Contains("attacker") then 
+                            let attacker = getValue line
+                            war <- {war with attacker = attacker; attackers = attacker::war.attackers}
+                        elif line.Contains("defender") then 
+                            let defender = getValue line
+                            war<- {war with defender =getValue line;defenders = defender::war.defenders}
                     | "battle" ->
                         if line = "{" then
                             let block = collectBlock i 0 0  (Array.ofList lines) List.empty
                             let battle= parseBattle block initBattle 0
+                            
                             war <- {war with battles = battle::war.battles}
                     | date when dateRegex.IsMatch(date) -> 
                         if line = "{" then
-                            printfn "New event %s" date
+                            //printfn "New event %s" date
                             let block = collectBlock i 0 0 (Array.ofList lines) List.empty
                             let event = parseEvent block {initEvent with date = date} 0
                             if event.eventType <> NoEvent then 
                                 war <- {war with events = event::war.events}
+                                match event.eventType with
+                                    | AddAttacker attacker -> war <- {war with attackers = attacker::war.attackers}
+                                    | AddDefender defender -> war <- {war with defenders = defender::war.defenders}
+                                    | _ -> ()
+                                
                     | _ -> ()
         war
 
@@ -202,5 +228,22 @@ module V2 =
                 let war = parseWar(collectBlock i 0 0 lines List.empty )
                 wars <- war::wars
         {wars = wars}
+
+    let getFlags flagDir  =
+        let dirInfo = new DirectoryInfo(flagDir)
+        let getBitmap (file : string) =
+            use image = Pfim.FromFile(file)
+            let data = Marshal.UnsafeAddrOfPinnedArrayElement(image.Data,0)
+            let size = Avalonia.Size(float image.Width,float image.Height)
+            let pixelSize = Avalonia.PixelSize.FromSize(size, 1.0)
+            
+            new Bitmap(Avalonia.Platform.PixelFormat.Bgra8888,data,pixelSize,Avalonia.Vector.One,image.Stride)
+        [for file in dirInfo.GetFiles("*.tga")  do file.Name.Remove(file.Name.Length - 4, 4),getBitmap file.FullName ] |> Map.ofList
+        
+        
+        
+   
+        
+    
                     
 

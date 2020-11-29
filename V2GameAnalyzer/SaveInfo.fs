@@ -1,7 +1,7 @@
 ﻿namespace V2GameAnalyzer
 
 open Avalonia.FuncUI.Components
-
+open System.IO
 module SaveInfo= 
     open Elmish
     open Avalonia.FuncUI
@@ -11,31 +11,36 @@ module SaveInfo=
     open Avalonia.Controls
     open Avalonia.Layout
     open Avalonia.FuncUI.DSL
+    open Avalonia.Media.Imaging
 
     type State = {
         saveGame : string
         v2File : V2.V2File
         selectedWar : Option< V2.War>
         selectedBattle : Option<V2.Battle>
-        
+        flagDir : string
+        flags : Option< Map<string,Bitmap>>
     }
     type Msg = 
         Open of string
         | SelectWar of Option< V2.War>
         | SelectBattle of Option<V2.Battle>
-    let init = {saveGame = "";v2File = V2.init;selectedWar = None;selectedBattle = None},Cmd.none
+        | LoadFlags of string
+    let init = {saveGame = "";v2File = V2.init;selectedWar = None;selectedBattle = None;flagDir = "";flags = None},Cmd.none
     let update (msg: Msg) (state: State)  =
        let newState = 
             match msg with
                 | Msg.Open file -> 
                     printfn "Open file: %s" file
                     let v2 =V2.parse file
+                    
+
                     {state with saveGame = file;v2File = v2 }
                 | Msg.SelectWar war ->
                     match war with
                         |Some(w) -> 
                             printfn "War selected: %s" w.name
-                            printfn "%s" (w.ToString())
+                            //printfn "%s" (w.ToString())
                         | _ -> ()
                     {state with selectedWar = war;selectedBattle = (match war with | Some(w) -> Some( w.battles.[0]) | None -> None)}
                 | Msg.SelectBattle battle ->
@@ -43,6 +48,11 @@ module SaveInfo=
                         | Some(b) -> (printfn "Selected battle of %s " b.name)
                         | _ -> ()
                     {state with selectedBattle = battle}
+                | LoadFlags dir ->
+                    
+                    let flags =V2.getFlags dir
+                    {state with flags = Some(flags)}
+
        newState,Cmd.none
 
     
@@ -110,24 +120,50 @@ module SaveInfo=
     
     let showWar (state: State) dispatch  =
         
-        let showStats country alignment =
+        let showStats country alignment (war :V2.War)  =
+            
+            let flagImage country =
+                (match state.flags with
+                | Some(flagMap) -> 
+                    Image.create[
+                        Image.source flagMap.[ country]]
+                | None -> Image.create[])
+            let side = if country = war.attacker then war.attackers else war.defenders
+
+            let losses = 
+                    List.foldBack(fun (battle:V2.Battle) n   -> 
+                        if List.contains battle.attacker.country side then n + battle.attacker.losses
+                        else n + battle.defender.losses) war.battles 0
+               
+                            
+
             StackPanel.create[
                 StackPanel.horizontalAlignment alignment
                 StackPanel.children[
                     TextBlock.create[
                         TextBlock.horizontalAlignment HorizontalAlignment.Center
                         TextBlock.fontSize 24.0
-                        TextBlock.text (match country with | Some(c) -> c | None -> "") ]
+                        TextBlock.text country
+                        ];
+                    TextBlock.create[
+                        TextBlock.horizontalAlignment HorizontalAlignment.Center
+                        TextBlock.fontSize 24.0
+                        TextBlock.text (sprintf "Total losses: %d" losses)
+                    ]
 
                 ]
+                
             ]
-
-        DockPanel.create[
-            DockPanel.children[
-                showStats (match state.selectedWar with Some(war) -> Some( sprintf "Belligerent: %s"war.attacker) | None -> None) HorizontalAlignment.Left
-                showStats (match state.selectedWar with Some(war) -> Some( sprintf "Defender: %s" war.defender) | None -> None) HorizontalAlignment.Right
-            ]
-        ]
+        match state.selectedWar with
+            | Some(war) ->
+                        DockPanel.create[
+                            DockPanel.children[
+                                showStats war.attacker HorizontalAlignment.Left war
+                                showStats war.defender HorizontalAlignment.Right war
+                            ]
+                        ]
+            | None -> DockPanel.create[]
+        
 
     let warsContent (state: State) (dispatch) =
         let evenItem (event : V2.Event) =
